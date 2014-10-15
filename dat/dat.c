@@ -76,8 +76,10 @@ struct dat * init_dat(int array_len) {
 int expand_dat_array(struct dat *d, int new_length) {
     int i;
     struct dat_node *nodes;
-    
-    if (new_length <= d->array_len) {
+
+    if (new_length == 0) {
+        new_length = d->array_len / 2 + d->array_len;
+    } else if (new_length <= d->array_len) {
         return 0;
     }
     
@@ -152,12 +154,14 @@ void add_free_node_idx(struct dat* d, int idx) {
         NODE_BASE(d, idx) = -idx;
         NODE_CHECK(d, idx) = -idx;
     } else {
-        first = FIRST_FREE_INDEX(d);
+        t = first = FIRST_FREE_INDEX(d);
 
-        for(t = -1 * NODE_CHECK(d, first); t != first && t < idx;) {
-            t = -1 * NODE_CHECK(d, t);
+        if (idx > first) {
+            for(t = -1 * NODE_CHECK(d, first); t != first && t < idx;) {
+                t = -1 * NODE_CHECK(d, t);
+            }
         }
-        
+
         NODE_BASE(d, idx) = NODE_BASE(d, t);
         NODE_CHECK(d, -1 * NODE_BASE(d, t)) = -1 * idx;
         
@@ -237,12 +241,121 @@ int find_pos(struct dat *d, int s, char ch, int *exist, int *conflict) {
     return pos;
 }
 
-int resolve(struct dat *d, int s, unsigned char ch) {
-    return 0;
+int find_newbase(struct dat *d, int s, unsigned char *ca, int ca_count) {
+    int nbase;
+    int pos, start;
+    int npos;
+    int found;
+    unsigned char ch;
+
+    if (d->idle_count == 0) {
+        if (expand_dat_array(d, 0) < 0) {
+            return -1;
+        }
+    }
+
+    // pos, next pos
+    pos = start = FIRST_FREE_INDEX(d);
+    npos = -1 * NODE_CHECK(d, pos);
+    for (; ; pos = npos) {
+        npos = -1 * NODE_CHECK(d, pos);
+        if (start == npos) {
+            if (expand_dat_array(d, 0) < 0) {
+                return -1;
+            }
+        }
+        if (pos <=  256) {
+            continue;
+        }
+        found = 1;
+        nbase = pos - ca[0];
+        
+        for (int i = 1; i < ca_count; i ++) {
+            ch = ca[i];
+            if (nbase + ch >= d->array_len) {
+                if (expand_dat_array(d, nbase + ch) < 0) {
+                    return -1;
+                }
+            }
+            if (NODE_CHECK(d, nbase + ch) >= 0) {
+                found = 0;
+                break;
+            }
+        }
+        if (found)
+            return nbase;
+    }
+
+    return -1;
 }
 
-int relocate(struct dat *d, int s, unsigned char ch) {
-    return 0;
+int next_states(struct dat *d, int s, unsigned char *ca, unsigned long size) {
+    int i, cnt;
+
+    memset(ca, 0, size);
+    for (i = 1, cnt = 0; i; i ++) {
+        if (NODE_CHECK(d, s + i) == s) {
+            ca[cnt] = i;
+            cnt ++;
+        }
+    }
+
+    return cnt;
+}
+
+void relocate(struct dat *d, int s, int nbase, unsigned char *ca, int ca_count) {
+    int i, j;
+    int obase = NODE_BASE(d, s);
+    int opos, npos;
+    int st_count;
+    unsigned char ch;
+    unsigned char states[256];
+    
+    for (i = 0; i < ca_count; i ++) {
+        ch = ca[i];
+        opos = obase + ch;
+        npos = nbase + ch;
+        
+        if (obase < 0) opos = -obase + ch;
+        
+        del_free_node_idx(d, npos);
+        NODE_BASE(d, npos) = NODE_BASE(d, opos);
+        NODE_CHECK(d, npos) = s;
+        
+        // 下一位置的check值更新
+        if (NODE_BASE(d, opos) != DAT_END_POS) {
+            st_count = next_states(d, opos, states, sizeof(states));
+            int opos_base = NODE_BASE(d, opos);
+            for (j = 0; j < st_count; j ++) {
+                if (NODE_BASE(d, opos) > 0) {
+                    NODE_CHECK(d, opos_base + states[j]) = npos;
+                } else {
+                    NODE_CHECK(d, -opos_base + states[j]) = npos;
+                }
+            }
+        }
+        
+        add_free_node_idx(d, opos);
+    }
+
+    NODE_BASE(d, s) = nbase;
+}
+
+int resolve(struct dat *d, int s, unsigned char ch) {
+    int cnt;
+    int nbase;
+    unsigned char ca[256];
+    
+    cnt = next_states(d, s, ca, sizeof(ca));
+    
+    nbase = find_newbase(d, s, ca, cnt);
+    if (nbase < 0) {
+        return -1;
+    }
+
+    relocate(d, s, nbase, ca, cnt);
+
+    return nbase + ch;
 }
 
 // insert key to dat
@@ -264,7 +377,9 @@ int insert_pattern(struct dat *d, char *key, unsigned long key_len, void *data) 
         }
         if (exist == 0) {
             if (conflict) {
-                t = relocate(d, s, ch);
+                t = resolve(d, s, ch);
+                if (t < 0)
+                    return -1;
             } else {
                 del_free_node_idx(d, t);
                 // base值由下一个确定
