@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		56E8828219EE29CE00F20181 /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 56E8828119EE29CE00F20181 /* main.c */; };
 		56E8828419EE29CE00F20181 /* dat.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 56E8828319EE29CE00F20181 /* dat.1 */; };
+		56E8829119EE2A6500F20181 /* dat.c in Sources */ = {isa = PBXBuildFile; fileRef = 56E8828C19EE2A6500F20181 /* dat.c */; };
+		56E8829219EE2A6500F20181 /* url_match.c in Sources */ = {isa = PBXBuildFile; fileRef = 56E8828E19EE2A6500F20181 /* url_match.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -28,6 +30,10 @@
 		56E8827E19EE29CE00F20181 /* dat */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = dat; sourceTree = BUILT_PRODUCTS_DIR; };
 		56E8828119EE29CE00F20181 /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
 		56E8828319EE29CE00F20181 /* dat.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = dat.1; sourceTree = "<group>"; };
+		56E8828C19EE2A6500F20181 /* dat.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = dat.c; sourceTree = "<group>"; };
+		56E8828D19EE2A6500F20181 /* dat.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = dat.h; sourceTree = "<group>"; };
+		56E8828E19EE2A6500F20181 /* url_match.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = url_match.c; sourceTree = "<group>"; };
+		56E8828F19EE2A6500F20181 /* url_match.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = url_match.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -60,6 +66,10 @@
 		56E8828019EE29CE00F20181 /* dat */ = {
 			isa = PBXGroup;
 			children = (
+				56E8828C19EE2A6500F20181 /* dat.c */,
+				56E8828D19EE2A6500F20181 /* dat.h */,
+				56E8828E19EE2A6500F20181 /* url_match.c */,
+				56E8828F19EE2A6500F20181 /* url_match.h */,
 				56E8828119EE29CE00F20181 /* main.c */,
 				56E8828319EE29CE00F20181 /* dat.1 */,
 			);
@@ -117,7 +127,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				56E8829119EE2A6500F20181 /* dat.c in Sources */,
 				56E8828219EE29CE00F20181 /* main.c in Sources */,
+				56E8829219EE2A6500F20181 /* url_match.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
