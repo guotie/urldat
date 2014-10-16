@@ -21,6 +21,7 @@
 
 #define NODE_BASE(d, i)  ((d)->nodes[i].base)
 #define NODE_CHECK(d, i) ((d)->nodes[i].check)
+#define NODE_DATA(d, i)  ((d)->nodes[i].data)
 
 #define TOLOWWER(c) do{ if((c)>='A' && (c)<='Z') (c) = (c) + 'a' - 'A'; }while(0)
 
@@ -32,10 +33,12 @@ void init_dat_nodes(struct dat *d) {
     // position 0 是特殊位置，不是数组链表的一部分，相当于固定的链表头
     NODE_BASE(d, 0) = 0;
     NODE_CHECK(d, 0) = 1;
+    NODE_DATA(d, 0) = NULL;
 
     for(i = 1; i < d->array_len; i ++) {
         NODE_BASE(d, i) = -(i - 1);
         NODE_CHECK(d, i) = -(i + 1);
+        NODE_DATA(d, i) = NULL;
     }
     NODE_BASE(d, 1) = -(i - 1);
     NODE_CHECK(d, i-1) = -1;
@@ -98,6 +101,7 @@ int expand_dat_array(struct dat *d, int new_length) {
     for (i = d->array_len; i < new_length; i ++) {
         nodes[i].base = -(i - 1);
         nodes[i].check = -(i + 1);
+        NODE_DATA(d, i) = NULL;
     }
     
     if (d->nodes[0].check == 0) {
@@ -173,6 +177,7 @@ void add_free_node_idx(struct dat* d, int idx) {
         }
     }
 
+    NODE_DATA(d, idx) = NULL;
     d->idle_count ++;
     return;
 }
@@ -320,6 +325,8 @@ void relocate(struct dat *d, int s, int nbase, unsigned char *ca, int ca_count) 
         
         del_free_node_idx(d, npos);
         NODE_BASE(d, npos) = NODE_BASE(d, opos);
+        NODE_DATA(d, npos) = NODE_DATA(d, opos);
+        
         NODE_CHECK(d, npos) = s;
         
         // 下一位置的check值更新

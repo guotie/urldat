@@ -17,13 +17,13 @@
 struct dat_node {
     int base;
     int check;
+    void *data;
 };
 
 struct dat {
     char name[DAT_NAME_LEN];
 
     struct dat_node *nodes;
-    
     int array_len;
     int idle_count;
     
