@@ -68,7 +68,7 @@ int expand_dat_array(struct dat *d, int new_length) {
         return -1;
     }
 
-    printf("expand dat array from %d to %d 0x%lx d->nodes=0x%lx\n", d->array_len, new_length, (unsigned long)nodes, (unsigned long)d->nodes);
+    //printf("expand dat array from %d to %d 0x%lx d->nodes=0x%lx\n", d->array_len, new_length, (unsigned long)nodes, (unsigned long)d->nodes);
 
     // 复制原来nodes的数据
     //memset(nodes, 0, sizeof(struct dat_node) * new_length);
@@ -170,7 +170,7 @@ void add_free_node_idx(struct dat* d, int idx) {
     return;
 }
 
-int __find_pos(struct dat *d, int s, char ch) {
+int __find_pos(struct dat *d, int s, unsigned char ch) {
     int start, pos, olen;
     
     if (d->idle_count > 0) {
@@ -193,7 +193,7 @@ int __find_pos(struct dat *d, int s, char ch) {
     return olen;
 }
 
-int find_pos(struct dat *d, int s, char ch, int *exist, int *conflict) {
+int find_pos(struct dat *d, int s, unsigned char ch, int *exist, int *conflict) {
     int pos = -1;
     int base = NODE_BASE(d, s);
     
@@ -327,7 +327,7 @@ void relocate(struct dat *d, int s, int nbase, unsigned char *ca, int ca_count) 
     unsigned char states[256];
     
     NODE_ASSERT(d, s);
-    printf("relocate: obase=%d nbase=%d ca=%s\n", obase, nbase, ca);
+    //printf("relocate: obase=%d nbase=%d ca=%s\n", obase, nbase, ca);
     
     for (i = 0; i < ca_count; i ++) {
         ch = ca[i];
@@ -395,7 +395,7 @@ int resolve(struct dat *d, int s, unsigned char ch) {
 }
 
 // insert key to dat
-int insert_pattern(struct dat *d, char *key, unsigned long key_len, void *data) {
+int insert_pattern(struct dat *d, unsigned char *key, unsigned long key_len, void *data) {
     int exist;
     int conflict;
     int i = 0, s = 0, t = 0;
@@ -441,14 +441,14 @@ int insert_pattern(struct dat *d, char *key, unsigned long key_len, void *data) 
 }
 
 // build dat
-int build_dat(struct dat *d, char *pats[MAX_PAT_LEN], int pat_count) {
+int build_dat(struct dat *d, unsigned char *pats[MAX_PAT_LEN], int pat_count) {
     int i = 0;
     int ret = 0;
     unsigned long len = 0;
-    char *pattern = (char *)(pats);
+    unsigned char *pattern = (unsigned char *)(pats);
 
     for (; i < pat_count; i ++, pattern += MAX_PAT_LEN) {
-        len = strlen(pattern);
+        len = strlen((char *)pattern);
         if (len >= MAX_PAT_LEN - 1) {
             printf("pattern [index=%d %s] too long, length=%lu\n", i, pattern, len);
             continue;
@@ -463,7 +463,7 @@ int build_dat(struct dat *d, char *pats[MAX_PAT_LEN], int pat_count) {
 }
 
 // remove pattern
-void remove_pattern(struct dat *d, char *key, unsigned long key_len) {
+void remove_pattern(struct dat *d, unsigned char *key, unsigned long key_len) {
     
 }
 
@@ -479,7 +479,7 @@ void remove_pattern(struct dat *d, char *key, unsigned long key_len) {
 //          2 has any match
 // @return:
 //          match data
-void * match_dat(struct dat *d, char *target, unsigned long targetlen, int option, int *found) {
+void * match_dat(struct dat *d, unsigned char *target, unsigned long targetlen, int option, int *found) {
     void *data = NULL;
     unsigned char ch;
     int i = 0, s = 0, t = 0;

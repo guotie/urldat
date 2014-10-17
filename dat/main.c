@@ -11,8 +11,9 @@
 
 #include "dat.h"
 
-char urls[][MAX_PAT_LEN] = { "a",
-    "aaa",
+unsigned char urls[][MAX_PAT_LEN] = { "a",
+    "aa∑a",
+    
     "abcd",
     "aa",
     "aab",
@@ -40,7 +41,7 @@ char urls[][MAX_PAT_LEN] = { "a",
     "1532888.com/ad/0.js",
     "1532888.com/ad/00.js",
     "1532888.com/ad/1.js",
-    "1532888.com/ad/120X60.js",
+    "1532888.com/ad/120X60≈ßß.js",
     "1532888.com/ad/120xm.js",
     "17.wo.com.cn/./newtouch2014/scripts/app.wx.min.js",
     "17173.com/https://s.ue.17173cdn.com/a/lib/passport/v2/js/passport.js",
@@ -60,24 +61,25 @@ char urls[][MAX_PAT_LEN] = { "a",
     "36.01ny.cn/api.php?mod=js&bid=5621",
     "36.01ny.cn/api.php?mod=js&bid=5622",
     "36.cn/https://cert.ebs.gov.cn/govicon.js?id=9f50b45d-54a8-4af6-8c0e-68d3269670af&width=36&height=50",
+     
 };
 
 void test_dat() {
     int ret = 0;
-    char *url;
+    unsigned char *url;
     struct dat *t_dat;
     int i, found;
     
     t_dat = create_dat(0, 1);
     printf("sizeof urls: %lu\n", sizeof(urls));
-    ret = build_dat(t_dat, (char **)urls, sizeof(urls)/MAX_PAT_LEN);
+    ret = build_dat(t_dat, (unsigned char **)urls, sizeof(urls)/MAX_PAT_LEN);
     if (ret < 0) {
         printf("build_dat failed!\n");
     }
     
     for (i = 0; i < sizeof(urls)/MAX_PAT_LEN; i++) {
         url = urls[i];
-        t_dat->match(t_dat, url, strlen(url), 0, &found);
+        t_dat->match(t_dat, url, strlen((char *)url), 0, &found);
         if (found == 0) {
             printf("url %d %s should be matched.\n", i, url);
         } else {
@@ -111,23 +113,25 @@ void test_file(char *fn) {
     while (fgets(line, sizeof(line)-1, fp)) {
         ptr = line;
         len = strlen(ptr);
-        ret = f_dat->insert(f_dat, ptr, len, NULL);
+        ret = f_dat->insert(f_dat, (unsigned char *)ptr, len, NULL);
         if (ret < 0) {
             printf("insert dat key %s failed!\n", ptr);
         }
         count ++;
-        if (count % 10 == 0)
-            printf("insert %d key\n", count);
+        //if (count % 10 == 0)
+        //    printf("insert %d key\n", count);
     }
     if (fseek(fp, 0, SEEK_SET) < 0) {
         printf("fseek file %s to start failed!\n", fn);
         return;
     }
+    count = 0;
     while (fgets(line, sizeof(line)-1, fp)) {
+        count ++;
         len = strlen(line);
-        data = f_dat->match(f_dat, line, len, 0, &found);
+        data = f_dat->match(f_dat, (unsigned char *)line, len, 0, &found);
         if (found == 0) {
-            printf("line %s should be matched.\n", line);
+            printf("line %d %s should be matched.\n", count, line);
         }
     }
 
