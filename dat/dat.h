@@ -30,9 +30,11 @@ struct dat {
     int nocase;
 
     // methods
-    int (*build)(struct dat *d, char *pats[MAX_PAT_LEN], int pat_count);
-    int (*insert) (struct dat *d, char *pat, int patlen);
-    int (*match) (struct dat *d, char *target, int targetlen, int option);
+    int (*insert) (struct dat *, char *, unsigned long, void *);
+    void * (*match) (struct dat *, char *, unsigned long, int, int *);
 };
+
+struct dat * create_dat(int array_len, int nocase);
+int build_dat(struct dat *d, char *pats[MAX_PAT_LEN], int pat_count);
 
 #endif
