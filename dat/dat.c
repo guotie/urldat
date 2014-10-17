@@ -19,6 +19,7 @@
 
 #define FIRST_FREE_INDEX(d) ((d)->nodes[0].check)
 
+#define NODE_ASSERT(d, i) do { if((i) < 0 || (i) >= d->array_len) { printf("node index invalid: %d array len: %d\n", i, d->array_len); assert(0);} } while(0)
 #define NODE_BASE(d, i)  ((d)->nodes[i].base)
 #define NODE_CHECK(d, i) ((d)->nodes[i].check)
 #define NODE_DATA(d, i)  ((d)->nodes[i].data)
@@ -54,34 +55,37 @@ int expand_dat_array(struct dat *d, int new_length) {
     if (new_length == 0) {
         new_length = d->array_len / 2 + d->array_len;
     } else if (new_length <= d->array_len) {
-        return 0;
+        new_length = d->array_len + 1;
     }
     
-    new_length = (new_length + 4096) & (~(DEFAULT_DAT_LEN-1));
+    new_length = (new_length + DEFAULT_DAT_LEN) & (~(DEFAULT_DAT_LEN-1));
+    if (new_length > MAX_DAT_LEN) {
+        return -1;
+    }
 
     nodes = malloc(sizeof(struct dat_node) * new_length);
     if (!nodes) {
         return -1;
     }
-    
+
     printf("expand dat array from %d to %d 0x%lx d->nodes=0x%lx\n", d->array_len, new_length, (unsigned long)nodes, (unsigned long)d->nodes);
 
     // 复制原来nodes的数据
-    memset(nodes, 0, sizeof(struct dat_node) * new_length);
+    //memset(nodes, 0, sizeof(struct dat_node) * new_length);
     memcpy(nodes, d->nodes, sizeof(struct dat_node) * d->array_len);
     
     // 初始化新增节点
     for (i = d->array_len; i < new_length; i ++) {
         nodes[i].base = -(i - 1);
         nodes[i].check = -(i + 1);
-        NODE_DATA(d, i) = NULL;
+        nodes[i].data = NULL;
     }
     
     if (d->nodes[0].check == 0) {
         // 没有空余节点
         nodes[0].check = d->array_len;
         nodes[d->array_len].base = -(i-1);
-        nodes[d->array_len].check = -d->array_len;
+        nodes[i-1].check = -d->array_len;
     } else {
         // 原有的空余节点与新增节点连接起来
         int first = NODE_CHECK(d, 0);
@@ -115,6 +119,10 @@ void del_free_node_idx(struct dat *d, int idx) {
         if (idx == FIRST_FREE_INDEX(d)) {
             FIRST_FREE_INDEX(d) = -1 * c;
         }
+        NODE_ASSERT(d, idx);
+        NODE_ASSERT(d, -1*c);
+        NODE_ASSERT(d, -1*b);
+
         NODE_BASE(d, -1 * c) = b;
         NODE_CHECK(d, -1 * b) = c;
     }
@@ -126,6 +134,7 @@ void del_free_node_idx(struct dat *d, int idx) {
 void add_free_node_idx(struct dat* d, int idx) {
     int t, first;
 
+    NODE_ASSERT(d, idx);
     if (d->idle_count == 0) {
         FIRST_FREE_INDEX(d) = idx;
         NODE_BASE(d, idx) = -idx;
@@ -135,6 +144,7 @@ void add_free_node_idx(struct dat* d, int idx) {
 
         if (idx > first) {
             for(t = -1 * NODE_CHECK(d, first); t != first && t < idx;) {
+                NODE_ASSERT(d, t);
                 t = -1 * NODE_CHECK(d, t);
             }
         }
@@ -143,6 +153,8 @@ void add_free_node_idx(struct dat* d, int idx) {
             assert(t != idx);
 
         NODE_BASE(d, idx) = NODE_BASE(d, t);
+        NODE_ASSERT(d, t);
+        NODE_ASSERT(d, -1 * NODE_BASE(d, t));
         NODE_CHECK(d, -1 * NODE_BASE(d, t)) = -1 * idx;
         
         NODE_BASE(d, t) = -1 * idx;
@@ -164,6 +176,7 @@ int __find_pos(struct dat *d, int s, char ch) {
     if (d->idle_count > 0) {
         pos = start = FIRST_FREE_INDEX(d);
         do {
+            NODE_ASSERT(d, pos);
             pos = -1 * NODE_CHECK(d, pos);
         } while(pos <= 256 && pos != start);
         
@@ -183,7 +196,8 @@ int __find_pos(struct dat *d, int s, char ch) {
 int find_pos(struct dat *d, int s, char ch, int *exist, int *conflict) {
     int pos = -1;
     int base = NODE_BASE(d, s);
-
+    
+    NODE_ASSERT(d, s);
     if (s == 0) {
         pos = NODE_BASE(d, 0) + ch;
     } else {
@@ -212,6 +226,7 @@ int find_pos(struct dat *d, int s, char ch, int *exist, int *conflict) {
         }
     }
     
+    NODE_ASSERT(d, pos);
     if (s == NODE_CHECK(d, pos)) {
         *exist = 1;
         return pos;
@@ -238,8 +253,10 @@ int find_newbase(struct dat *d, int s, unsigned char *ca, int ca_count) {
 
     // pos, next pos
     pos = start = FIRST_FREE_INDEX(d);
+    NODE_ASSERT(d, pos);
     npos = -1 * NODE_CHECK(d, pos);
     for (; ; pos = npos) {
+        NODE_ASSERT(d, pos);
         npos = -1 * NODE_CHECK(d, pos);
         if (start == npos) {
             if (expand_dat_array(d, 0) < 0) {
@@ -255,10 +272,12 @@ int find_newbase(struct dat *d, int s, unsigned char *ca, int ca_count) {
         for (int i = 1; i < ca_count; i ++) {
             ch = ca[i];
             if (nbase + ch >= d->array_len) {
+                printf("should expand dat array: nbase=%d ch=%d array_len=%d\n", nbase, (int)ch, d->array_len);
                 if (expand_dat_array(d, nbase + ch) < 0) {
                     return -1;
                 }
             }
+            NODE_ASSERT(d, nbase + ch);
             if (NODE_CHECK(d, nbase + ch) >= 0) {
                 found = 0;
                 break;
@@ -275,6 +294,8 @@ int next_states(struct dat *d, int s, unsigned char *ca, unsigned long size) {
     unsigned char i;
     int cnt;
     int base = NODE_BASE(d, s);
+    
+    NODE_ASSERT(d, s);
 
     if (base == DAT_END_POS) {
         assert (base != DAT_END_POS);
@@ -287,6 +308,7 @@ int next_states(struct dat *d, int s, unsigned char *ca, unsigned long size) {
         if ((base + i) >= d->array_len )
             break;
 
+        NODE_ASSERT(d, base + i);
         if (NODE_CHECK(d, base + i) == s) {
             ca[cnt] = i;
             cnt ++;
@@ -304,6 +326,7 @@ void relocate(struct dat *d, int s, int nbase, unsigned char *ca, int ca_count) 
     unsigned char ch;
     unsigned char states[256];
     
+    NODE_ASSERT(d, s);
     printf("relocate: obase=%d nbase=%d ca=%s\n", obase, nbase, ca);
     
     for (i = 0; i < ca_count; i ++) {
@@ -320,6 +343,8 @@ void relocate(struct dat *d, int s, int nbase, unsigned char *ca, int ca_count) 
         opos = obase + ch;
         if (obase < 0) opos = -obase + ch;
         
+        NODE_ASSERT(d, npos);
+        NODE_ASSERT(d, opos);
         NODE_BASE(d, npos) = NODE_BASE(d, opos);
         NODE_DATA(d, npos) = NODE_DATA(d, opos);
         
@@ -329,10 +354,13 @@ void relocate(struct dat *d, int s, int nbase, unsigned char *ca, int ca_count) 
         if (NODE_BASE(d, opos) != DAT_END_POS) {
             st_count = next_states(d, opos, states, sizeof(states));
             int opos_base = NODE_BASE(d, opos);
+            NODE_ASSERT(d, opos);
             for (j = 0; j < st_count; j ++) {
                 if (NODE_BASE(d, opos) > 0) {
+                    NODE_ASSERT(d, opos_base + states[j]);
                     NODE_CHECK(d, opos_base + states[j]) = npos;
                 } else {
+                    NODE_ASSERT(d, -opos_base + states[j]);
                     NODE_CHECK(d, -opos_base + states[j]) = npos;
                 }
             }
@@ -341,6 +369,7 @@ void relocate(struct dat *d, int s, int nbase, unsigned char *ca, int ca_count) 
         add_free_node_idx(d, opos);
     }
 
+    NODE_ASSERT(d, s);
     if (obase < 0)
         NODE_BASE(d, s) = -nbase;
     else
@@ -389,6 +418,7 @@ int insert_pattern(struct dat *d, char *key, unsigned long key_len, void *data) 
                     return -1;
             } else {
                 del_free_node_idx(d, t);
+                NODE_ASSERT(d, t);
                 // base值由下一个确定
                 NODE_BASE(d, t) = 0;
                 NODE_CHECK(d, t) = s;
@@ -398,8 +428,10 @@ int insert_pattern(struct dat *d, char *key, unsigned long key_len, void *data) 
         
         if (i == key_len - 1) {
             if (NODE_BASE(d, t) > 0) {
+                NODE_ASSERT(d, t);
                 NODE_BASE(d, t) = -1 * NODE_BASE(d, t);
             } else if (NODE_BASE(d, t) == 0){
+                NODE_ASSERT(d, t);
                 NODE_BASE(d, t) = DAT_END_POS;
             }
         }

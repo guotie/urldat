@@ -25,7 +25,41 @@ char urls[][MAX_PAT_LEN] = { "a",
     "bbbbbbae",
     "http://www.sina.cn", "alpha", "zzbc", "fals", "hi!", "ab", "cc", "ca", "sets",
     "wow", "baa", "ma", "mm",
-    "how", "bcefd", "apple", "google", "ms", "tencent", "baidu", "axon"
+    "how", "bcefd", "apple", "google", "ms", "tencent", "baidu", "axon",
+    "sssfdksfjiodsjifoejiofjidjsklfjkdlsajfkldsjaklf",
+    "jieowju0jnvfkxnvjkxiurequ8493u04rs",
+    "0394r9jnfdnvjxyfeqgfbdsafjdskvpokxopsvpfd-s0re",
+    "293ri920hnvibvnwojfsjcoindisojfodf09ewhfewfs",
+    "jdiso9f0e-fie0-wkfopsjdlnkxhvudapajfiodsaofe9wqfjijfkldsjfkldsnvkds",
+    "ifew0920jfielwfnkdslnfkdlsnvjjifdig9ewfjklsfdklsnxnjvbjcx",
+    "kdfjijinvx,nvjijof",
+    "sina.com.cn/news.html",
+    "google.com/api/auth/mail.xjioewfds",
+    "147rt.net/images/dinbu1.js",
+    "147rt.net/images/huanden.js",
+    "1532888.com/ad/0.js",
+    "1532888.com/ad/00.js",
+    "1532888.com/ad/1.js",
+    "1532888.com/ad/120X60.js",
+    "1532888.com/ad/120xm.js",
+    "17.wo.com.cn/./newtouch2014/scripts/app.wx.min.js",
+    "17173.com/https://s.ue.17173cdn.com/a/lib/passport/v2/js/passport.js",
+    "17500.cn/0613/Js/common.js?v=58",
+    "17500.cn/0613/Js/jquery-1.5.2.min.js",
+    "17500.cn/https://w.cnzz.com/q_stat.php?id=1000449615&l=3",
+    "17et.com/res/mobile/script/page.js?v=20110901111",
+    "2345.com/css/common_20140911.js?v=2.28.1",
+    "25800.net/js/google_caf.js?rte=1&tm=2&dn=25800.net&tid=1026",
+    "25800.net/js/standard.js?rte=1&tm=2&dn=25800.net&tid=1026",
+    "25pp.com/staticfiles/js/jquery-1.7.2.min.js",
+    "33ly.com/Templates/33ly/Skins/newindex/js/jquery-1.7.2.min.js",
+    "33ly.com/Templates/33ly/Skins/newindex/js/jquery.newSlideShow.js",
+    "33ly.com/Templates/33ly/Skins/newindex/js/main.js",
+    "33ly.com/Templates/33ly/Skins/newindex/js/new_default.js",
+    "36.01ny.cn/api.php?mod=js&bid=5620",
+    "36.01ny.cn/api.php?mod=js&bid=5621",
+    "36.01ny.cn/api.php?mod=js&bid=5622",
+    "36.cn/https://cert.ebs.gov.cn/govicon.js?id=9f50b45d-54a8-4af6-8c0e-68d3269670af&width=36&height=50",
 };
 
 void test_dat() {
@@ -56,6 +90,7 @@ void test_file(char *fn) {
     char line[1024];
     char *ptr;
     int ret;
+    int count = 0;
     unsigned long len;
     FILE *fp = fopen(fn, "r");
     struct dat *f_dat;
@@ -80,6 +115,9 @@ void test_file(char *fn) {
         if (ret < 0) {
             printf("insert dat key %s failed!\n", ptr);
         }
+        count ++;
+        if (count % 10 == 0)
+            printf("insert %d key\n", count);
     }
     if (fseek(fp, 0, SEEK_SET) < 0) {
         printf("fseek file %s to start failed!\n", fn);
