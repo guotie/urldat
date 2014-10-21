@@ -215,7 +215,7 @@ static inline void * __find_host_path(char *host, int host_len, char *path, int 
     struct path_mi *pm;
     
     pm = host_dat->match(host_dat, (unsigned char *)host, host_len, 1, found);
-    if (!found) {
+    if (*found == 0) {
         return NULL;
     }
 

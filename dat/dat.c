@@ -449,7 +449,7 @@ int remove_pattern(struct dat *d, unsigned char *key, unsigned long key_len, voi
     void *data = NULL;
     unsigned char ch;
     int base;
-    int i = 0, s, t;
+    int i = 0, s = 0, t;
     
     if (key_len <= 0)
         return -1;
@@ -462,9 +462,13 @@ int remove_pattern(struct dat *d, unsigned char *key, unsigned long key_len, voi
     t = d->nodes[0].base + ch;
     
     do {
+        if (t >= d->array_len) {
+            return -2;
+        }
+
         if (NODE_CHECK(d, t) != s) {
             // 未找到
-            return -2;
+            return -3;
         }
         
         base = NODE_BASE(d, t);
@@ -474,8 +478,8 @@ int remove_pattern(struct dat *d, unsigned char *key, unsigned long key_len, voi
             break;
         
         i ++;
-        if (i >= d->array_len)
-            return -2;
+        if (i >= key_len)
+            return -4;
         
         s = t;
         ch = *(key + i);
@@ -523,7 +527,8 @@ int remove_pattern(struct dat *d, unsigned char *key, unsigned long key_len, voi
 // @return: found:
 //          0 not match
 //          1 has exact match
-//          2 has any match
+//          2 has match
+//          3 shortest match
 // @return:
 //          match data
 void * match_dat(struct dat *d, unsigned char *target, unsigned long targetlen, int option, int *found) {
@@ -544,6 +549,10 @@ void * match_dat(struct dat *d, unsigned char *target, unsigned long targetlen, 
     t = d->nodes[0].base + ch;
 
     do {
+        if (t >= d->array_len) {
+            break;
+        }
+        
         if (NODE_CHECK(d, t) != s) {
             // 未找到
             break;
@@ -551,14 +560,14 @@ void * match_dat(struct dat *d, unsigned char *target, unsigned long targetlen, 
 
         base = NODE_BASE(d, t);
         assert(base != 0);
-        if (base < 0){
+        if (base < 0) {
+            data = NODE_DATA(d, t);
+            attr = NODE_ATTR(d, t);
             // 到了结束位置
             if (i == targetlen - 1)
                 *found = 1;
             else {
                 if (option != 0) {
-                    data = NODE_DATA(d, t);
-                    attr = NODE_ATTR(d, t);
                     if (option == 1 && attr & DAT_ATTR_WILDCAST)
                         *found = 2;
                     if (option == 2) // 最短match
@@ -571,7 +580,7 @@ void * match_dat(struct dat *d, unsigned char *target, unsigned long targetlen, 
         }
         
         i ++;
-        if (i >= d->array_len)
+        if (i >= targetlen)
             break;
 
         s = t;
