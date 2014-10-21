@@ -14,10 +14,15 @@
 #define DAT_NAME_LEN        32
 #define MAX_PAT_LEN         256
 
+#define DAT_ATTR_WILDCAST   1
+
+typedef unsigned long DatAttr;
+
 struct dat_node {
     int base;
     int check;
     void *data;
+    DatAttr attr;
 };
 
 struct dat {
@@ -30,11 +35,13 @@ struct dat {
     int nocase;
 
     // methods
-    int (*insert) (struct dat *, unsigned char *, unsigned long, void *);
+    int (*insert) (struct dat *, unsigned char *, unsigned long, unsigned long, void *);
+    int (*remove) (struct dat *, unsigned char *, unsigned long, void (*free_fn)(void *));
     void * (*match) (struct dat *, unsigned char *, unsigned long, int, int *);
 };
 
 struct dat * create_dat(int array_len, int nocase);
+void destroy_dat(struct dat *, void (*free_fn)(void *));
 int build_dat(struct dat *d, unsigned char *pats[MAX_PAT_LEN], int pat_count);
 
 #endif
