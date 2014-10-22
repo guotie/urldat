@@ -10,10 +10,11 @@
 #include <strings.h>
 
 #include "dat.h"
+#include "url_match.h"
 
-unsigned char urls[][MAX_PAT_LEN] = { "a",
+unsigned char urls[][MAX_PAT_LEN] = {
+    "a",
     "aa∑a",
-    
     "abcd",
     "aa",
     "aab",
@@ -61,7 +62,6 @@ unsigned char urls[][MAX_PAT_LEN] = { "a",
     "36.01ny.cn/api.php?mod=js&bid=5621",
     "36.01ny.cn/api.php?mod=js&bid=5622",
     "36.cn/https://cert.ebs.gov.cn/govicon.js?id=9f50b45d-54a8-4af6-8c0e-68d3269670af&width=36&height=50",
-     
 };
 
 void test_dat() {
@@ -86,6 +86,31 @@ void test_dat() {
             
         }
     }
+    
+    // test remove
+    for (i = 0; i < sizeof(urls)/MAX_PAT_LEN; i++) {
+        url = urls[i];
+        ret = t_dat->remove(t_dat, url, strlen((char *)url), NULL);
+        if (ret != 0) {
+            printf("remove %d %s failed: %d\n", i, url, ret);
+        }
+        
+        t_dat->match(t_dat, url, strlen((char *)url), 0, &found);
+        if (found != 0) {
+            printf("url %d %s has been removed, should be be matched.\n", i, url);
+        }
+    }
+}
+
+unsigned long getstrlen(char *ptr) {
+    unsigned long len = 0;
+    char *p = ptr;
+
+    while(*p && *p != ' ' && *p != '\t' && *p != '\r' && *p != '\n') {
+        p++;
+    }
+    len = p - ptr;
+    return len;
 }
 
 void test_file(char *fn) {
@@ -112,8 +137,8 @@ void test_file(char *fn) {
 
     while (fgets(line, sizeof(line)-1, fp)) {
         ptr = line;
-        len = strlen(ptr);
-        ret = f_dat->insert(f_dat, (unsigned char *)ptr, len, NULL);
+        len = getstrlen(ptr);
+        ret = f_dat->insert(f_dat, (unsigned char *)ptr, len, 0, NULL);
         if (ret < 0) {
             printf("insert dat key %s failed!\n", ptr);
         }
@@ -128,13 +153,54 @@ void test_file(char *fn) {
     count = 0;
     while (fgets(line, sizeof(line)-1, fp)) {
         count ++;
-        len = strlen(line);
+        len = getstrlen(line);
         data = f_dat->match(f_dat, (unsigned char *)line, len, 0, &found);
         if (found == 0) {
             printf("line %d %s should be matched.\n", count, line);
         }
     }
 
+    fclose(fp);
+}
+
+void test_url(char *fn) {
+    char line[1024];
+    char *ptr;
+    int ret;
+    int count = 0;
+    unsigned long len;
+    FILE *fp = fopen(fn, "r");
+    int found;
+    
+    if (!fp) {
+        printf("Cannot open file %s\n", fn);
+        return;
+    }
+    while (fgets(line, sizeof(line)-1, fp)) {
+        ptr = line;
+        ret = insert_url(ptr);
+        if (ret < 0) {
+            printf("insert dat key %s failed!\n", ptr);
+        }
+        count ++;
+        //if (count % 10 == 0)
+        //    printf("insert %d key\n", count);
+    }
+    if (fseek(fp, 0, SEEK_SET) < 0) {
+        printf("fseek file %s to start failed!\n", fn);
+        return;
+    }
+    
+    count = 0;
+    while (fgets(line, sizeof(line)-1, fp)) {
+        count ++;
+        len = getstrlen(line);
+        found = find_url(line, len);
+        if (found == 0) {
+            printf("line %d %s should be matched.\n", count, line);
+        }
+    }
+    
     fclose(fp);
 }
 

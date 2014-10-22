@@ -24,5 +24,8 @@ struct path_mi {
     struct dat *path_dat;
 };
 
+int insert_url(char *url);
+int find_host_path(char *host, int host_len, char *path, int path_len);
+int find_url(char *url, unsigned long len);
 
 #endif

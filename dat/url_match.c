@@ -90,7 +90,7 @@ int split_url(char *url, unsigned long len, char **host, int *host_len, int *hos
     }
     
     ptr = _host;
-    while (*ptr && *ptr != '/') {
+    while (*ptr && *ptr != '/' && *ptr != ' ' && *ptr != '\t' && *ptr != '\r' && *ptr != '\n') {
         // 除首字符外，不允许host的其他字符出现*
         if (*ptr == '*')
             return -3;
@@ -102,7 +102,7 @@ int split_url(char *url, unsigned long len, char **host, int *host_len, int *hos
         _host_len >= MAX_HOST_LEN)
         return -4;
     
-    if (*ptr)
+    if (*ptr == '/')
         _path = ptr++;
     else
         goto out;  /* only host parsed */
@@ -128,8 +128,12 @@ out:
 }
 
 int __insert_path(struct path_mi *pm, unsigned char *path, int path_len, int wildcast) {
+    if (path == NULL) {
+        return 0;
+    }
+
     if (path_len <= 1) {
-        if (*path == '/')
+        if (path && *path == '/')
         // path '/'默认匹配
             return 0;
         return -1;
@@ -248,7 +252,7 @@ int find_host_path(char *host, int host_len, char *path, int path_len) {
     return 0;
 }
 
-int find_url() {
+int find_url(char *url, unsigned long len) {
     return 0;
 }
 

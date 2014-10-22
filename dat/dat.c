@@ -281,6 +281,30 @@ int find_newbase(struct dat *d, int s, unsigned char *ca, int ca_count) {
     return -1;
 }
 
+// just return state s has how many next states
+int next_states_count(struct dat *d, int s) {
+    unsigned char i;
+    int cnt = 0;
+    int base = NODE_BASE(d, s);
+    
+    if (base == DAT_END_POS) {
+        return 0;
+    }
+    if (base < 0)
+        base = -1 *base;
+
+    for (i = 1; i; i ++) {
+        if ((base + i) >= d->array_len )
+            break;
+        
+        if (NODE_CHECK(d, base + i) == s)
+            cnt ++;
+    }
+
+    return cnt;
+
+}
+
 int next_states(struct dat *d, int s, unsigned char *ca, unsigned long size) {
     unsigned char i;
     int cnt;
@@ -415,7 +439,7 @@ int insert_pattern(struct dat *d, unsigned char *key, unsigned long key_len, uns
             }
         }
     }
-    
+
     NODE_ATTR(d, t) = attr;
     NODE_DATA(d, t) = data;
 
@@ -450,71 +474,75 @@ int remove_pattern(struct dat *d, unsigned char *key, unsigned long key_len, voi
     unsigned char ch;
     int base;
     int i = 0, s = 0, t;
+    int nxt_cnt;
     
     if (key_len <= 0)
         return -1;
     
     // check if key in dat
-    ch = *key;
-    if(d->nocase)
-        TOLOWWER(ch);
     
-    t = d->nodes[0].base + ch;
-    
+    // s为前一个节点， t为后一个节点
     do {
-        if (t >= d->array_len) {
-            return -2;
-        }
-
-        if (NODE_CHECK(d, t) != s) {
-            // 未找到
-            return -3;
-        }
-        
-        base = NODE_BASE(d, t);
-        assert(base != 0);
-        // 到了结束位置
-        if (base < 0 && i == key_len - 1)
-            break;
-        
-        i ++;
-        if (i >= key_len)
-            return -4;
-        
-        s = t;
         ch = *(key + i);
-        if (d->nocase) TOLOWWER(ch);
+        if(d->nocase)
+            TOLOWWER(ch);
         
-        if (base > 0) {
+        base = NODE_BASE(d, s);
+        if (base >= 0) {
             t = base + ch;
         } else {
             t = -base + ch;
         }
+
+        if (t >= d->array_len) {
+            return -2;
+        }
+        
+        // 未找到
+        if (NODE_CHECK(d, t) != s) {
+            return -3;
+        }
+
+        i ++;
+        s = t;
     } while (i < key_len);
+
+    // 从后往前依次删除节点
+    i --;
     
-    // 删除节点数据
+    // 处理最后一个节点
+    base = NODE_BASE(d, t);
+    s = NODE_CHECK(d, t);
+    assert(base < 0);
+    
     data = NODE_DATA(d, t);
-    if (data && free_fn) {
+    if (data && free_fn)
         free_fn(data);
-    }
-    NODE_ATTR(d, t) = 0;
-
-    // 该节点后面还有其他key在使用
-    if (base != DAT_END_POS) {
-        NODE_BASE(d, t) = -base;
-        return 0;
-    }
-
-    // 从后向前删除节点
-    do {
-        s = NODE_CHECK(d, t);
-        del_free_node_idx(d, t);
-        t = s;
-        if (NODE_BASE(d, s) < 0)
-            break;
-        i --;
-    }while(i >= 0);
     
+    NODE_ATTR(d, t) = 0;
+    if (base == DAT_END_POS)
+        add_free_node_idx(d, t);
+    else
+        NODE_BASE(d, t) = -base;
+    
+    i--;
+    while(i >= 0) {
+        t = s;
+        nxt_cnt = next_states_count(d, t);
+        base = NODE_BASE(d, t);
+        
+        // 该节点后有其他模式
+        if (base < 0) {
+            if ( nxt_cnt == 0) {
+                NODE_BASE(d, t) = DAT_END_POS;
+            }
+            return 0;
+        }
+    
+        i --;
+        s = NODE_CHECK(d, t);
+    }
+
     return 0;
 }
 
@@ -576,9 +604,9 @@ void * match_dat(struct dat *d, unsigned char *target, unsigned long targetlen, 
             }
 
             if (base == DAT_END_POS)
-                return NODE_DATA(d, s);
+                return data;
         }
-        
+
         i ++;
         if (i >= targetlen)
             break;
