@@ -582,7 +582,7 @@ int __remove_pattern(struct dat *d, unsigned char *key, unsigned long key_len, i
         // 删除节点
         s = NODE_CHECK(d, t);
         add_free_node_idx(d, t);
-    
+
         i --;
     }
 
