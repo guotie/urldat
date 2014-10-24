@@ -36,8 +36,11 @@ struct dat {
 
     // methods
     int (*insert) (struct dat *, unsigned char *, unsigned long, unsigned long, void *);
+    int (*rev_insert) (struct dat *, unsigned char *, unsigned long, unsigned long, void *);
     int (*remove) (struct dat *, unsigned char *, unsigned long, void (*free_fn)(void *));
+    int (*rev_remove) (struct dat *, unsigned char *, unsigned long, void (*free_fn)(void *));
     void * (*match) (struct dat *, unsigned char *, unsigned long, int, int *);
+    void * (*rev_match) (struct dat *, unsigned char *, unsigned long, int, int *);
 };
 
 struct dat * create_dat(int array_len, int nocase);

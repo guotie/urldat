@@ -411,14 +411,18 @@ int resolve(struct dat *d, int s, unsigned char ch) {
 }
 
 // insert key to dat
-int insert_pattern(struct dat *d, unsigned char *key, unsigned long key_len, unsigned long attr, void *data) {
+int __insert_pattern(struct dat *d, unsigned char *key, unsigned long key_len, unsigned long attr, int reverse, void *data) {
     int exist;
     int conflict;
     int i = 0, s = 0, t = 0;
     unsigned char ch;
     
     for (; i < key_len; i ++) {
-        ch = *(key + i);
+        if (reverse == 0)
+            ch = *(key + i);
+        else
+            ch = *(key - i);
+
         if (d->nocase) TOLOWWER(ch);
         
         exist = 0;
@@ -456,6 +460,14 @@ int insert_pattern(struct dat *d, unsigned char *key, unsigned long key_len, uns
     return 0;
 }
 
+int insert_pattern(struct dat *d, unsigned char *key, unsigned long key_len, unsigned long attr, void *data) {
+    return __insert_pattern(d, key, key_len, attr, 0, data);
+}
+
+int insert_reverse_pattern(struct dat *d, unsigned char *key, unsigned long key_len, unsigned long attr, void *data) {
+    return __insert_pattern(d, key, key_len, attr, 1, data);
+}
+
 // build dat
 int build_dat(struct dat *d, unsigned char *pats[MAX_PAT_LEN], int pat_count) {
     int i = 0;
@@ -479,7 +491,7 @@ int build_dat(struct dat *d, unsigned char *pats[MAX_PAT_LEN], int pat_count) {
 }
 
 // remove pattern
-int remove_pattern(struct dat *d, unsigned char *key, unsigned long key_len, void (*free_fn)(void *)) {
+int __remove_pattern(struct dat *d, unsigned char *key, unsigned long key_len, int reverse, void (*free_fn)(void *)) {
     void *data = NULL;
     unsigned char ch;
     int base;
@@ -493,7 +505,11 @@ int remove_pattern(struct dat *d, unsigned char *key, unsigned long key_len, voi
     
     // s为前一个节点， t为后一个节点
     do {
-        ch = *(key + i);
+        if (reverse == 0)
+            ch = *(key + i);
+        else
+            ch = *(key - i);
+
         if(d->nocase)
             TOLOWWER(ch);
         
@@ -573,6 +589,14 @@ int remove_pattern(struct dat *d, unsigned char *key, unsigned long key_len, voi
     return 0;
 }
 
+int remove_pattern(struct dat *d, unsigned char *key, unsigned long key_len, void (*free_fn)(void *))  {
+    return __remove_pattern(d, key, key_len, 0, free_fn);
+}
+
+int remove_reverse_pattern(struct dat *d, unsigned char *key, unsigned long key_len, void (*free_fn)(void *)) {
+    return __remove_pattern(d, key, key_len, 1, free_fn);
+}
+
 // match dat
 // @param: option:
 //             0: exact math
@@ -586,7 +610,7 @@ int remove_pattern(struct dat *d, unsigned char *key, unsigned long key_len, voi
 //          3 shortest match
 // @return:
 //          match data
-void * match_dat(struct dat *d, unsigned char *target, unsigned long targetlen, int option, int *found) {
+void * __match_dat(struct dat *d, unsigned char *target, unsigned long targetlen, int option, int *found, int reverse) {
     void *data = NULL;
     unsigned long attr;
     unsigned char ch;
@@ -639,7 +663,11 @@ void * match_dat(struct dat *d, unsigned char *target, unsigned long targetlen, 
             break;
 
         s = t;
-        ch = *(target + i);
+        if (reverse == 0)
+            ch = *(target + i);
+        else
+            ch = *(target - i);
+
         if (d->nocase) TOLOWWER(ch);
         
         if (base > 0) {
@@ -652,6 +680,13 @@ void * match_dat(struct dat *d, unsigned char *target, unsigned long targetlen, 
     return data;
 }
 
+void * match_dat(struct dat *d, unsigned char *target, unsigned long targetlen, int option, int *found)  {
+    return __match_dat(d, target, targetlen, option, found, 0);
+}
+
+void *reverse_match_dat(struct dat *d, unsigned char *target, unsigned long targetlen, int option, int *found) {
+    return __match_dat(d, target, targetlen, option, found, 1);
+}
 
 // init dat base array & check array
 struct dat * create_dat(int array_len, int nocase) {
@@ -680,8 +715,11 @@ struct dat * create_dat(int array_len, int nocase) {
     init_dat_nodes(d);
     
     d->insert = insert_pattern;
+    d->rev_insert =insert_reverse_pattern;
     d->remove = remove_pattern;
+    d->rev_remove = remove_reverse_pattern;
     d->match = match_dat;
+    d->rev_match = reverse_match_dat;
 
     return d;
 }
