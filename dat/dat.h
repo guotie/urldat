@@ -43,5 +43,6 @@ struct dat {
 struct dat * create_dat(int array_len, int nocase);
 void destroy_dat(struct dat *, void (*free_fn)(void *));
 int build_dat(struct dat *d, unsigned char *pats[MAX_PAT_LEN], int pat_count);
+void dump_dat(struct dat *);
 
 #endif

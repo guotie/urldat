@@ -26,6 +26,10 @@
 
 #define TOLOWWER(c) do{ if((c)>='A' && (c)<='Z') (c) = (c) + 'a' - 'A'; }while(0)
 
+void dump_dat(struct dat *d) {
+    printf("DAT:\n    array_len=%d idle_count=%d nocase=%d\n", d->array_len, d->idle_count, d->nocase);
+}
+
 // 初始化数组链表
 // 设置idle_count
 void init_dat_nodes(struct dat *d) {
@@ -141,9 +145,16 @@ void add_free_node_idx(struct dat* d, int idx) {
         t = first = FIRST_FREE_INDEX(d);
 
         if (idx > first) {
-            for(t = -1 * NODE_CHECK(d, first); t != first && t < idx;) {
-                t = -1 * NODE_CHECK(d, t);
+            //for(t = -1 * NODE_CHECK(d, first); t != first && t < idx;) {
+            //    t = -1 * NODE_CHECK(d, t);
+            //}
+            for (t = idx; t < d->array_len; t ++) {
+                if (NODE_CHECK(d, t) < 0) {
+                    break;
+                }
             }
+            if (t == d->array_len)
+                t = first;
         }
         
         if (t == idx)
@@ -264,7 +275,6 @@ int find_newbase(struct dat *d, int s, unsigned char *ca, int ca_count) {
         for (int i = 1; i < ca_count; i ++) {
             ch = ca[i];
             if (nbase + ch >= d->array_len) {
-                printf("should expand dat array: nbase=%d ch=%d array_len=%d\n", nbase, (int)ch, d->array_len);
                 if (expand_dat_array(d, nbase + ch) < 0) {
                     return -1;
                 }
@@ -491,9 +501,12 @@ int remove_pattern(struct dat *d, unsigned char *key, unsigned long key_len, voi
         if (base >= 0) {
             t = base + ch;
         } else {
+            if (base == DAT_END_POS)
+                return 0;
             t = -base + ch;
         }
 
+        assert(t > 0);
         if (t >= d->array_len) {
             return -2;
         }
@@ -512,8 +525,13 @@ int remove_pattern(struct dat *d, unsigned char *key, unsigned long key_len, voi
     
     // 处理最后一个节点
     base = NODE_BASE(d, t);
+    if (base > 0) {
+        // dat模式的一个子串
+        // printf("pattern %s %lu is not an exact pattern in dat.\n", key, key_len);
+        return 0;
+    }
     s = NODE_CHECK(d, t);
-    assert(base < 0);
+    assert(base != 0);
     
     data = NODE_DATA(d, t);
     if (data && free_fn)
@@ -522,25 +540,34 @@ int remove_pattern(struct dat *d, unsigned char *key, unsigned long key_len, voi
     NODE_ATTR(d, t) = 0;
     if (base == DAT_END_POS)
         add_free_node_idx(d, t);
-    else
+    else {
+        // 该key是其他模式的子串，不能继续删除
         NODE_BASE(d, t) = -base;
-    
+        return 0;
+    }
     i--;
     while(i >= 0) {
         t = s;
+        assert(t > 0);
         nxt_cnt = next_states_count(d, t);
         base = NODE_BASE(d, t);
         
         // 该节点后有其他模式
         if (base < 0) {
             if ( nxt_cnt == 0) {
+                // printf("set pos %d to DAT_END_POS\n", t);
                 NODE_BASE(d, t) = DAT_END_POS;
             }
             return 0;
         }
+        if (nxt_cnt > 0) {
+            return 0;
+        }
+        // 删除节点
+        s = NODE_CHECK(d, t);
+        add_free_node_idx(d, t);
     
         i --;
-        s = NODE_CHECK(d, t);
     }
 
     return 0;
@@ -642,6 +669,7 @@ struct dat * create_dat(int array_len, int nocase) {
     
     assert(array_len > 256);
     
+    d->nocase = nocase;
     d->array_len = array_len;
     d->nodes = malloc(sizeof(struct dat_node) * array_len);
     if (!d->nodes) {

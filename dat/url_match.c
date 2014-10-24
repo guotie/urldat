@@ -15,7 +15,7 @@
 
 
 #ifndef MIN_HOST_LEN
-#define MIN_HOST_LEN 6
+#define MIN_HOST_LEN 4
 #endif
 
 #ifndef MAX_HOST_LEN
@@ -25,9 +25,6 @@
 #ifndef MAX_PATH_LEN
 #define MAX_PATH_LEN 192
 #endif
-
-struct dat *host_dat;
-pthread_rwlock_t host_lock;
 
 void *alloc_mi() {
     struct path_mi *pm;
@@ -43,13 +40,12 @@ void *alloc_mi() {
     return pm;
 }
 
-void free_mi(struct path_mi *mi) {
+void free_mi(void *ptr) {
+    struct path_mi *mi = ptr;
     pthread_rwlock_destroy(&mi->lock);
     destroy_dat(mi->path_dat, NULL);
     free(mi);
 }
-
-
 
 // split_url
 // 将url转换为struct url_mi
@@ -120,9 +116,11 @@ out:
     *host = _host;
     *path = _path;
     *host_len = (int)_host_len;
-    *host_wc = _host_wildcard;
     *path_len = (int)_path_len;
-    *path_wc = _path_wildcard;
+    if(host_wc)
+        *host_wc = _host_wildcard;
+    if(path_wc)
+        *path_wc = _path_wildcard;
 
     return 0;
 }
@@ -164,12 +162,13 @@ int insert_path(struct path_mi *pm, unsigned char *path, int path_len, int wildc
     return ret;
 }
 
-int insert_url(char *url) {
+int insert_url(struct url_dat *ud, char *url) {
     int ret;
     unsigned long len;
     char *host, *path;
     int host_len, path_len;
     int host_wc, path_wc;
+    struct dat *host_dat = ud->d;
     
     int found = 0;
     struct path_mi *pm;
@@ -182,32 +181,31 @@ int insert_url(char *url) {
     if (split_url(url, len, &host, &host_len, &host_wc, &path, &path_len, &path_wc) < 0)
         return -1;
 
-    if (host_dat == NULL) {
-        host_dat = create_dat(0, 1);
-        if (host_dat == NULL)
-            return -1;
-        pthread_rwlock_init(&host_lock, NULL);
-    }
+    if(ud == NULL)
+        return -1;
+    
+    if (ud->d == NULL)
+        return -1;
 
     /// insert host
-    pthread_rwlock_wrlock(&host_lock);
+    pthread_rwlock_wrlock(&(ud->lock));
     // 精确匹配
     pm = host_dat->match(host_dat, (unsigned char *)host, (unsigned long)host_len, 0, &found);
     if (!found) {
         pm = alloc_mi();
         if (pm == NULL) {
-            pthread_rwlock_unlock(&host_lock);
+            pthread_rwlock_unlock(&ud->lock);
             return -1;
         }
 
         ret = host_dat->insert(host_dat, (unsigned char *)host, (unsigned long)host_len, host_wc, (void *)pm);
         if (ret < 0) {
-            pthread_rwlock_unlock(&host_lock);
+            pthread_rwlock_unlock(&ud->lock);
             free_mi(pm);
             return -1;
         }
     }
-    pthread_rwlock_unlock(&host_lock);
+    pthread_rwlock_unlock(&ud->lock);
     
     // insert path
     ret = insert_path(pm, (unsigned char *)path, path_len, path_wc);
@@ -215,8 +213,9 @@ int insert_url(char *url) {
     return ret;
 }
 
-static inline void * __find_host_path(char *host, int host_len, char *path, int path_len, int *found) {
+static inline void * __find_host_path(struct dat *d, char *host, int host_len, char *path, int path_len, int *found) {
     struct path_mi *pm;
+    struct dat *host_dat = d;
     
     pm = host_dat->match(host_dat, (unsigned char *)host, host_len, 1, found);
     if (*found == 0) {
@@ -241,18 +240,58 @@ static inline void * __find_host_path(char *host, int host_len, char *path, int 
     return (void *)pm;
 }
 
-int find_host_path(char *host, int host_len, char *path, int path_len) {
+int find_host_path(struct url_dat *ud, char *host, int host_len, char *path, int path_len) {
     int found;
     void *data;
     
-    pthread_rwlock_rdlock(&host_lock);
-    data = __find_host_path(host, host_len, path, path_len, &found);
-    pthread_rwlock_unlock(&host_lock);
+    if (ud == NULL)
+        return 0;
     
-    return 0;
+    if (ud->d == NULL)
+        return 0;
+
+    pthread_rwlock_rdlock(&ud->lock);
+    data = __find_host_path(ud->d, host, host_len, path, path_len, &found);
+    pthread_rwlock_unlock(&ud->lock);
+    
+    return found;
 }
 
-int find_url(char *url, unsigned long len) {
-    return 0;
+int find_url(struct url_dat *ud, char *url, unsigned long len) {
+    char *host, *path;
+    int host_len, path_len;
+    int ret;
+    int found;
+    
+    ret = split_url(url, len, &host, &host_len, NULL, &path, &path_len, NULL);
+    if (ret < 0)
+        return 0;
+    
+    
+    found = find_host_path(ud, host, host_len, path, path_len);
+    return found;
 }
 
+struct url_dat *create_url_dat(int nocase) {
+    struct url_dat *ud;
+    
+    ud = malloc(sizeof(*ud));
+    if (!ud) {
+        return NULL;
+    }
+
+    ud->d = create_dat(0, nocase);
+    if (!ud->d) {
+        free(ud);
+        return NULL;
+    }
+
+    pthread_rwlock_init(&ud->lock, NULL);
+    return ud;
+}
+
+void destroy_url_dat(struct url_dat *ud) {
+    destroy_dat(ud->d, free_mi);
+    pthread_rwlock_destroy(&ud->lock);
+    free(ud);
+}
